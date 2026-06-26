@@ -133,7 +133,7 @@ export default function Connect({ session, onLogout }) {
     <div style={{ minHeight:"100vh", background:T.bg, display:"flex", flexDirection:"column" }}>
 
       {/* Header */}
-      <header style={{ padding:"16px 24px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+      <header className="connect-header" style={{ padding:"16px 24px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
         <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"1.1rem", color:T.ink }}>
           <span style={{ color:T.cyan }}>Connect</span>Quants
         </div>
@@ -150,7 +150,7 @@ export default function Connect({ session, onLogout }) {
       </header>
 
       {/* Main */}
-      <main style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent: state==="idle"||state==="queued" ? "center" : "flex-start", padding:"32px 24px", maxWidth:640, margin:"0 auto", width:"100%" }}>
+      <main className="connect-main" style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent: state==="idle"||state==="queued" ? "center" : "flex-start", padding:"32px 24px", maxWidth:640, margin:"0 auto", width:"100%" }}>
 
         {/* IDLE — topic picker */}
         {state==="idle" && (

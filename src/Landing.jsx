@@ -84,7 +84,7 @@ export default function Landing() {
 
       {/* How it works */}
       <section style={{ maxWidth: 760, margin: "0 auto", padding: "0 32px 100px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+        <div className="how-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
           {[
             { num: "01", title: "Pick a sector", desc: "AI, Quantum, Defence, Biotech, or Semiconductors. We find someone who invests in the same space." },
             { num: "02", title: "Get matched", desc: "We pair you instantly with another ConnectQuants member waiting in the same sector queue." },

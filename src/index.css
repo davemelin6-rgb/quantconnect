@@ -15,3 +15,43 @@ input  { font-family: inherit; }
 .fade-in { animation: fadeIn .4s ease; }
 
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+/* ── Mobile ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+
+  /* Landing — nav */
+  nav { padding: 14px 16px !important; }
+
+  /* Landing — hero */
+  section { padding: 60px 16px 48px !important; }
+
+  /* Landing — how it works grid collapses to 1 col */
+  .how-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Landing — sector buttons full width */
+  .sector-btn {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* Auth — form padding */
+  .auth-wrap { padding: 24px 16px !important; }
+
+  /* Connect — header */
+  .connect-header { padding: 12px 16px !important; }
+
+  /* Connect — main area */
+  .connect-main { padding: 16px 16px !important; }
+
+  /* Connect — topic buttons full width */
+  .topic-btn { width: 100% !important; }
+
+  /* Connect — chat input stays at bottom */
+  .chat-input-row { padding: 10px 0 !important; }
+
+  /* General */
+  h1 { font-size: clamp(2rem, 8vw, 3rem) !important; }
+  h2 { font-size: clamp(1.4rem, 6vw, 2rem) !important; }
+}
