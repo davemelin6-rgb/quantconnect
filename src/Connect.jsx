@@ -135,7 +135,7 @@ export default function Connect({ session, onLogout }) {
       {/* Header */}
       <header style={{ padding:"16px 24px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"1.1rem", color:T.ink }}>
-          <span style={{ color:T.cyan }}>Quant</span>Connect
+          <span style={{ color:T.cyan }}>Connect</span>Quants
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>

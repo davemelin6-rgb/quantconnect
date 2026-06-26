@@ -52,7 +52,7 @@ export default function Auth({ onBack }) {
         <button onClick={onBack} style={{ background:"none", border:"none", color:T.dim, cursor:"pointer", fontSize:".85rem", marginBottom:32, fontFamily:"inherit" }}>← Back</button>
 
         <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"1.6rem", marginBottom:8 }}>
-          {mode === "signup" ? "Join QuantConnect" : "Welcome back"}
+          {mode === "signup" ? "Join ConnectQuants" : "Welcome back"}
         </div>
         <p style={{ color:T.sub, fontSize:".88rem", marginBottom:32 }}>
           {mode === "signup" ? "Free forever. Connect with real investors." : "Sign in to connect with investors."}

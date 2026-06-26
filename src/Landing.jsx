@@ -25,7 +25,7 @@ export default function Landing() {
       {/* Nav */}
       <nav style={{ padding: "20px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}` }}>
         <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 800, fontSize: "1.2rem", color: T.ink }}>
-          <span style={{ color: T.cyan }}>Quant</span>Connect
+          <span style={{ color: T.cyan }}>Connect</span>Quants
         </div>
         <button
           onClick={() => setShowAuth(true)}
@@ -87,7 +87,7 @@ export default function Landing() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
           {[
             { num: "01", title: "Pick a sector", desc: "AI, Quantum, Defence, Biotech, or Semiconductors. We find someone who invests in the same space." },
-            { num: "02", title: "Get matched", desc: "We pair you instantly with another QuantConnect member waiting in the same sector queue." },
+            { num: "02", title: "Get matched", desc: "We pair you instantly with another ConnectQuants member waiting in the same sector queue." },
             { num: "03", title: "Chat live", desc: "A private 1-on-1 conversation. Share ideas, discuss signals, compare positions. No public feed." },
           ].map(s => (
             <div key={s.num} style={{ background: T.s1, border: `1px solid ${T.border}`, borderRadius: 14, padding: "24px 20px" }}>
@@ -109,7 +109,7 @@ export default function Landing() {
           onClick={() => setShowAuth(true)}
           style={{ background: T.cyan, border: "none", borderRadius: 12, color: "#04080F", fontFamily: "inherit", fontWeight: 800, fontSize: "1rem", padding: "14px 36px", cursor: "pointer" }}
         >
-          Join QuantConnect free →
+          Join ConnectQuants free →
         </button>
         <div style={{ marginTop: 40, fontSize: ".78rem", color: T.dim }}>
           Already have a QuantDiver account?{" "}
