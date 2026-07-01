@@ -11,6 +11,12 @@ const TOPICS = [
   { id:"semiconductors", label:"Semiconductors",        icon:"🔬", color:"#F97316" },
 ];
 
+const TRADER_TYPES = [
+  { id:"day",   label:"Day Trader",       icon:"⚡", desc:"Minutes to hours", color:"#F59E0B" },
+  { id:"swing", label:"Swing Trader",     icon:"📈", desc:"Days to weeks",    color:"#22D3EE" },
+  { id:"long",  label:"Long Term",        icon:"🏦", desc:"Months to years",  color:"#10B981" },
+];
+
 function avatarColor(name) {
   const COLORS = ["#00b4ff","#8B5CF6","#10B981","#F59E0B","#ff3c50","#22D3EE"];
   let h = 0; for (let i=0;i<(name||"").length;i++) h=(h*31+name.charCodeAt(i))&0xffff;
@@ -18,23 +24,39 @@ function avatarColor(name) {
 }
 
 export default function Connect({ session, onLogout }) {
-  const [profile,      setProfile]      = useState(null);
-  const [state,        setState]         = useState("idle"); // idle|queued|matched|ended
-  const [topic,        setTopic]         = useState(null);
-  const [queueId,      setQueueId]       = useState(null);
-  const [matchSession, setMatchSession]  = useState(null);
-  const [messages,     setMessages]      = useState([]);
-  const [input,        setInput]         = useState("");
-  const [online,       setOnline]        = useState([]);
+  const [profile,      setProfile]     = useState(null);
+  const [state,        setState]       = useState("idle");
+  const [topic,        setTopic]       = useState(null);
+  const [traderType,   setTraderType]  = useState(null);
+  const [queueId,      setQueueId]     = useState(null);
+  const [matchSession, setMatchSession]= useState(null);
+  const [messages,     setMessages]    = useState([]);
+  const [input,        setInput]       = useState("");
+  const [online,       setOnline]      = useState([]);
+  const [queueCounts,  setQueueCounts] = useState({});
   const bottomRef = useRef(null);
   const subRef    = useRef(null);
 
   useEffect(() => {
-    supabase.from("profiles").select("*").eq("id",session.user.id).single()
+    if (!session) return;
+    supabase.from("profiles").select("*").eq("id", session.user.id).single()
       .then(({ data }) => setProfile(data));
   }, [session]);
 
-  // Presence — who's online
+  // Load queue counts
+  useEffect(() => {
+    const load = () => {
+      fetch("https://www.quantdiver.com/api/match-queue-count")
+        .then(r => r.json())
+        .then(d => setQueueCounts(d.counts || {}))
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 10000); // refresh every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Presence
   useEffect(() => {
     if (!session || !profile) return;
     const ch = supabase.channel("qc-global", { config:{ presence:{ key: session.user.id }}});
@@ -47,7 +69,7 @@ export default function Connect({ session, onLogout }) {
     return () => supabase.removeChannel(ch);
   },[session, profile]);
 
-  // Realtime: watch queue for match
+  // Watch queue for match
   useEffect(() => {
     if (state!=="queued"||!queueId) return;
     const ch = supabase.channel(`qc-queue-${queueId}`)
@@ -58,7 +80,7 @@ export default function Connect({ session, onLogout }) {
     return () => supabase.removeChannel(ch);
   },[state, queueId]);
 
-  // Realtime: new messages
+  // Watch messages in session
   useEffect(() => {
     if (state!=="matched"||!matchSession) return;
     const ch = supabase.channel(`qc-msgs-${matchSession.id}`)
@@ -87,27 +109,31 @@ export default function Connect({ session, onLogout }) {
   }
 
   async function joinQueue() {
-    if (!topic||!profile) return;
+    if (!topic||!traderType||!profile) return;
     await supabase.from("match_queue").delete().eq("user_id",session.user.id).in("status",["waiting","cancelled"]);
     const cutoff = new Date(Date.now()-10*60*1000).toISOString();
     await supabase.from("match_queue").delete().lt("joined_at",cutoff).eq("status","waiting");
 
     const { data: waiting } = await supabase.from("match_queue").select("*")
-      .eq("topic",topic).eq("status","waiting").neq("user_id",session.user.id)
-      .order("joined_at",{ ascending:true }).limit(1).maybeSingle();
+      .eq("topic",topic).eq("trader_type",traderType).eq("status","waiting")
+      .neq("user_id",session.user.id).order("joined_at",{ ascending:true }).limit(1).maybeSingle();
 
     if (waiting) {
       const { data: sess } = await supabase.from("match_sessions").insert({
         user1_id:waiting.user_id, user1_name:waiting.username,
-        user2_id:session.user.id, user2_name:profile.username, topic,
+        user2_id:session.user.id, user2_name:profile.username,
+        topic, trader_type: traderType,
       }).select().single();
       if (sess) {
         await supabase.from("match_queue").update({ status:"matched", session_id:sess.id }).eq("id",waiting.id);
-        const { data: myEntry } = await supabase.from("match_queue").insert({ user_id:session.user.id, username:profile.username, topic, status:"matched", session_id:sess.id }).select().single();
+        const { data: myEntry } = await supabase.from("match_queue")
+          .insert({ user_id:session.user.id, username:profile.username, topic, trader_type:traderType, status:"matched", session_id:sess.id })
+          .select().single();
         setQueueId(myEntry?.id); setMatchSession(sess); setState("matched"); loadMessages(sess.id); return;
       }
     }
-    const { data: entry } = await supabase.from("match_queue").insert({ user_id:session.user.id, username:profile.username, topic }).select().single();
+    const { data: entry } = await supabase.from("match_queue")
+      .insert({ user_id:session.user.id, username:profile.username, topic, trader_type:traderType }).select().single();
     setQueueId(entry?.id); setState("queued");
   }
 
@@ -123,17 +149,21 @@ export default function Connect({ session, onLogout }) {
   async function endSession() {
     if (matchSession) await supabase.from("match_sessions").update({ status:"ended" }).eq("id",matchSession.id);
     if (queueId) await supabase.from("match_queue").update({ status:"cancelled" }).eq("id",queueId).eq("user_id",session.user.id);
-    setMatchSession(null); setQueueId(null); setMessages([]); setTopic(null); setState("idle");
+    setMatchSession(null); setQueueId(null); setMessages([]); setTopic(null); setTraderType(null); setState("idle");
   }
 
-  const topicInfo = TOPICS.find(t=>t.id===topic)||TOPICS[0];
-  const partnerName = matchSession ? (matchSession.user1_id===session.user.id ? matchSession.user2_name : matchSession.user1_name) : "";
+  const topicInfo    = TOPICS.find(t=>t.id===topic)||TOPICS[0];
+  const traderInfo   = TRADER_TYPES.find(t=>t.id===traderType)||TRADER_TYPES[1];
+  const partnerName  = matchSession ? (matchSession.user1_id===session.user.id ? matchSession.user2_name : matchSession.user1_name) : "";
+  const canConnect   = topic && traderType;
+  const queueKey     = `${topic}__${traderType}`;
+  const waitingCount = queueCounts[queueKey] || 0;
 
   return (
     <div style={{ minHeight:"100vh", background:T.bg, display:"flex", flexDirection:"column" }}>
 
       {/* Header */}
-      <header className="connect-header" style={{ padding:"16px 24px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+      <header style={{ padding:"16px 24px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
         <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"1.1rem", color:T.ink }}>
           <span style={{ color:T.cyan }}>Connect</span>Quants
         </div>
@@ -149,43 +179,77 @@ export default function Connect({ session, onLogout }) {
         </div>
       </header>
 
-      {/* Main */}
-      <main className="connect-main" style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent: state==="idle"||state==="queued" ? "center" : "flex-start", padding:"32px 24px", maxWidth:640, margin:"0 auto", width:"100%" }}>
+      <main style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent: state==="idle"||state==="queued" ? "center" : "flex-start", padding:"32px 24px", maxWidth:640, margin:"0 auto", width:"100%" }}>
 
-        {/* IDLE — topic picker */}
+        {/* IDLE */}
         {state==="idle" && (
-          <div className="fade-in" style={{ width:"100%", textAlign:"center" }}>
-            <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"clamp(1.8rem,4vw,2.4rem)", marginBottom:12 }}>
+          <div className="fade-in" style={{ width:"100%" }}>
+            <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"clamp(1.8rem,4vw,2.4rem)", marginBottom:8, textAlign:"center" }}>
               Talk to a real investor, right now.
             </h2>
-            <p style={{ color:T.sub, lineHeight:1.7, marginBottom:40, maxWidth:"34rem", margin:"0 auto 40px" }}>
-              Select a sector and we'll match you instantly with another investor who tracks the same stocks.
+            <p style={{ color:T.sub, lineHeight:1.7, marginBottom:32, textAlign:"center", maxWidth:"34rem", margin:"0 auto 32px" }}>
+              Select your sector and trading style. We'll match you with someone who invests the same way you do.
             </p>
-            <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:28 }}>
-              {TOPICS.map(t => (
-                <button key={t.id} onClick={() => setTopic(t.id)} style={{
-                  display:"flex", alignItems:"center", gap:14, padding:"16px 20px",
-                  background: topic===t.id ? `${t.color}15` : T.s1,
-                  border:`2px solid ${topic===t.id ? t.color : T.border}`,
-                  borderRadius:14, cursor:"pointer", transition:"all .15s", textAlign:"left",
+
+            {/* Sector picker */}
+            <div style={{ fontSize:".65rem", fontWeight:700, letterSpacing:".16em", textTransform:"uppercase", color:T.dim, marginBottom:10 }}>Select sector</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:24 }}>
+              {TOPICS.map(t => {
+                const count = Object.entries(queueCounts).filter(([k]) => k.startsWith(t.id + "__")).reduce((s,[,v])=>s+v,0);
+                return (
+                  <button key={t.id} onClick={() => setTopic(t.id)} style={{
+                    display:"flex", alignItems:"center", gap:14, padding:"14px 18px",
+                    background: topic===t.id ? `${t.color}15` : T.s1,
+                    border:`2px solid ${topic===t.id ? t.color : T.border}`,
+                    borderRadius:12, cursor:"pointer", transition:"all .15s", textAlign:"left",
+                  }}>
+                    <span style={{ fontSize:"1.3rem" }}>{t.icon}</span>
+                    <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:".95rem", color: topic===t.id ? t.color : T.sub, flex:1 }}>
+                      {t.label}
+                    </span>
+                    {count > 0 && (
+                      <span style={{ fontFamily:"'Space Mono',monospace", fontSize:".65rem", fontWeight:700, color:t.color, background:t.color+"15", border:`1px solid ${t.color}30`, borderRadius:999, padding:"2px 10px" }}>
+                        {count} waiting
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Trader type picker */}
+            <div style={{ fontSize:".65rem", fontWeight:700, letterSpacing:".16em", textTransform:"uppercase", color:T.dim, marginBottom:10 }}>Your trading style</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:28 }}>
+              {TRADER_TYPES.map(t => (
+                <button key={t.id} onClick={() => setTraderType(t.id)} style={{
+                  padding:"16px 12px", textAlign:"center",
+                  background: traderType===t.id ? `${t.color}15` : T.s1,
+                  border:`2px solid ${traderType===t.id ? t.color : T.border}`,
+                  borderRadius:12, cursor:"pointer", transition:"all .15s",
                 }}>
-                  <span style={{ fontSize:"1.4rem" }}>{t.icon}</span>
-                  <span style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"1rem", color: topic===t.id ? t.color : T.sub }}>
-                    {t.label}
-                  </span>
-                  {topic===t.id && <span style={{ marginLeft:"auto", fontSize:".7rem", fontWeight:700, color:t.color }}>Selected ✓</span>}
+                  <div style={{ fontSize:"1.4rem", marginBottom:6 }}>{t.icon}</div>
+                  <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:".82rem", color: traderType===t.id ? t.color : T.sub }}>{t.label}</div>
+                  <div style={{ fontSize:".68rem", color:T.dim, marginTop:3 }}>{t.desc}</div>
+                  {topic && traderType===t.id && (queueCounts[`${topic}__${t.id}`]||0) > 0 && (
+                    <div style={{ fontSize:".62rem", color:t.color, fontWeight:700, marginTop:6 }}>
+                      {queueCounts[`${topic}__${t.id}`]} waiting
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
-            <button onClick={joinQueue} disabled={!topic} style={{
-              width:"100%", padding:"16px", background: topic ? T.cyan : "rgba(255,255,255,.05)",
-              border:"none", borderRadius:12, color: topic ? "#04080F" : T.dim,
-              fontFamily:"inherit", fontWeight:800, fontSize:"1rem", cursor: topic ? "pointer" : "not-allowed",
-              transition:"all .2s",
+
+            <button onClick={joinQueue} disabled={!canConnect} style={{
+              width:"100%", padding:"16px",
+              background: canConnect ? T.cyan : "rgba(255,255,255,.05)",
+              border:"none", borderRadius:12,
+              color: canConnect ? "#04080F" : T.dim,
+              fontFamily:"inherit", fontWeight:800, fontSize:"1rem",
+              cursor: canConnect ? "pointer" : "not-allowed", transition:"all .2s",
             }}>
-              {topic ? `Find ${topicInfo.icon} Investor →` : "Select a sector first"}
+              {canConnect ? `Find ${topicInfo.icon} ${traderInfo.label} →` : "Select sector & trading style"}
             </button>
-            <p style={{ fontSize:".72rem", color:T.dim, marginTop:14 }}>
+            <p style={{ fontSize:".72rem", color:T.dim, marginTop:14, textAlign:"center" }}>
               Connections are voluntary and anonymous. Never share personal financial details.
             </p>
           </div>
@@ -195,11 +259,14 @@ export default function Connect({ session, onLogout }) {
         {state==="queued" && (
           <div className="fade-in" style={{ textAlign:"center" }}>
             <div style={{ fontSize:"2.5rem", marginBottom:20 }}>{topicInfo.icon}</div>
-            <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"1.6rem", marginBottom:12 }}>
+            <h2 style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"1.6rem", marginBottom:8 }}>
               Finding your match…
             </h2>
-            <p style={{ color:T.sub, marginBottom:32 }}>
-              Looking for another <b style={{color:topicInfo.color}}>{topicInfo.label}</b> investor. Sit tight.
+            <p style={{ color:T.sub, marginBottom:8 }}>
+              Looking for a <b style={{color:traderInfo.color}}>{traderInfo.label}</b> in <b style={{color:topicInfo.color}}>{topicInfo.label}</b>
+            </p>
+            <p style={{ fontSize:".78rem", color:T.dim, marginBottom:32 }}>
+              {waitingCount > 0 ? `${waitingCount} investor${waitingCount>1?"s":""} waiting in this queue` : "You're first in queue — hang tight"}
             </p>
             <div style={{ display:"flex", gap:6, justifyContent:"center", marginBottom:32 }}>
               {[0,1,2].map(i => <div key={i} style={{ width:8, height:8, borderRadius:"50%", background:topicInfo.color, opacity:.8, animation:`pulse 1.2s ${i*.3}s infinite` }} />)}
@@ -210,10 +277,9 @@ export default function Connect({ session, onLogout }) {
           </div>
         )}
 
-        {/* MATCHED — chat */}
+        {/* MATCHED */}
         {state==="matched" && matchSession && (
           <div className="fade-in" style={{ width:"100%", display:"flex", flexDirection:"column", height:"calc(100vh - 90px)" }}>
-            {/* Chat header */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 0", borderBottom:`1px solid ${T.border}`, marginBottom:8, flexShrink:0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ width:34, height:34, borderRadius:"50%", background:avatarColor(partnerName), display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, color:"#fff", fontSize:".85rem" }}>
@@ -221,7 +287,9 @@ export default function Connect({ session, onLogout }) {
                 </div>
                 <div>
                   <div style={{ fontWeight:700, color:T.ink, fontSize:".92rem" }}>{partnerName}</div>
-                  <div style={{ fontSize:".65rem", color:topicInfo.color, fontWeight:700 }}>{topicInfo.icon} {topicInfo.label}</div>
+                  <div style={{ fontSize:".65rem", color:topicInfo.color, fontWeight:700 }}>
+                    {topicInfo.icon} {topicInfo.label} · {traderInfo.icon} {traderInfo.label}
+                  </div>
                 </div>
               </div>
               <button onClick={endSession} style={{ background:"rgba(255,60,80,.08)", border:"1px solid rgba(255,60,80,.2)", borderRadius:8, color:"#ff3c50", fontFamily:"inherit", cursor:"pointer", padding:"6px 14px", fontSize:".75rem", fontWeight:700 }}>
@@ -229,7 +297,6 @@ export default function Connect({ session, onLogout }) {
               </button>
             </div>
 
-            {/* Messages */}
             <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:12, padding:"8px 0" }}>
               {messages.length===0 && (
                 <p style={{ color:T.dim, fontSize:".82rem", textAlign:"center", marginTop:32 }}>
@@ -246,9 +313,9 @@ export default function Connect({ session, onLogout }) {
                       </div>
                     )}
                     <div style={{
-                      maxWidth:"72%", padding:"10px 14px", borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                      background: isMe ? T.cyan : T.s2,
-                      color: isMe ? "#04080F" : T.ink,
+                      maxWidth:"72%", padding:"10px 14px",
+                      borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                      background: isMe ? T.cyan : T.s2, color: isMe ? "#04080F" : T.ink,
                       fontSize:".88rem", lineHeight:1.55,
                     }}>
                       {m.content}
@@ -259,10 +326,8 @@ export default function Connect({ session, onLogout }) {
               <div ref={bottomRef} />
             </div>
 
-            {/* Input */}
             <div style={{ display:"flex", gap:10, paddingTop:12, borderTop:`1px solid ${T.border}`, flexShrink:0 }}>
-              <input
-                value={input} onChange={e=>setInput(e.target.value)}
+              <input value={input} onChange={e=>setInput(e.target.value)}
                 onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); sendMessage(); }}}
                 placeholder={`Message ${partnerName}…`}
                 style={{ flex:1, background:T.s1, border:`1px solid ${T.border}`, borderRadius:10, color:T.ink, padding:"12px 14px", fontSize:".88rem", outline:"none" }}
@@ -289,7 +354,6 @@ export default function Connect({ session, onLogout }) {
             </div>
           </div>
         )}
-
       </main>
     </div>
   );
