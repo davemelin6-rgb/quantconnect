@@ -3,8 +3,9 @@ import { supabase } from "./supabaseClient.js";
 import Landing     from "./Landing.jsx";
 import Auth        from "./Auth.jsx";
 import Connect     from "./Connect.jsx";
-import ProfilePage from "./ProfilePage.jsx";
-import ContactPage from "./ContactPage.jsx";
+import ProfilePage    from "./ProfilePage.jsx";
+import ContactPage    from "./ContactPage.jsx";
+import HowItWorksPage from "./HowItWorksPage.jsx";
 
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -24,8 +25,9 @@ export default function App() {
 
   if (!session) return <Landing onGetStarted={() => {}} />;
 
-  if (page === "profile") return <ProfilePage session={session} onBack={() => setPage("connect")} />;
-  if (page === "contact") return <ContactPage session={session} onBack={() => setPage("connect")} />;
+  if (page === "profile")    return <ProfilePage    session={session} onBack={() => setPage("connect")} />;
+  if (page === "contact")    return <ContactPage    session={session} onBack={() => setPage("connect")} />;
+  if (page === "howitworks") return <HowItWorksPage              onBack={() => setPage("connect")} />;
 
   return <Connect session={session} onLogout={() => supabase.auth.signOut()} onNavigate={setPage} />;
 }

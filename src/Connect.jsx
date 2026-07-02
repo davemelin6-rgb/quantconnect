@@ -202,7 +202,7 @@ export default function Connect({ session, onLogout, onNavigate }) {
               </div>
               {[
                 { icon:"👤", label:"My Profile",   action:() => onNavigate?.("profile") },
-                { icon:"ℹ️", label:"How It Works", action:() => window.open("https://www.quantdiver.com","_blank") },
+                { icon:"ℹ️", label:"How It Works", action:() => onNavigate?.("howitworks") },
                 { icon:"✉️", label:"Contact",       action:() => onNavigate?.("contact") },
               ].map(item => (
                 <button key={item.label} onClick={() => { item.action(); setMenuOpen(false); }} style={{
