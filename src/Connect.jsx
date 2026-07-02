@@ -23,7 +23,7 @@ function avatarColor(name) {
   return COLORS[h % COLORS.length];
 }
 
-export default function Connect({ session, onLogout }) {
+export default function Connect({ session, onLogout, onNavigate }) {
   const [profile,      setProfile]     = useState(null);
   const [state,        setState]       = useState("idle");
   const [topic,        setTopic]       = useState(null);
@@ -201,9 +201,9 @@ export default function Connect({ session, onLogout }) {
                 <div style={{ fontSize:".72rem", color:T.dim }}>{session?.user?.email}</div>
               </div>
               {[
-                { icon:"👤", label:"My Profile",   action:() => {} },
+                { icon:"👤", label:"My Profile",   action:() => onNavigate?.("profile") },
                 { icon:"ℹ️", label:"How It Works", action:() => window.open("https://www.quantdiver.com","_blank") },
-                { icon:"✉️", label:"Contact",       action:() => window.open("mailto:administrator@quantdiver.com") },
+                { icon:"✉️", label:"Contact",       action:() => onNavigate?.("contact") },
               ].map(item => (
                 <button key={item.label} onClick={() => { item.action(); setMenuOpen(false); }} style={{
                   display:"flex", alignItems:"center", gap:10, width:"100%",
