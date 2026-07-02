@@ -152,6 +152,8 @@ export default function Connect({ session, onLogout }) {
     setMatchSession(null); setQueueId(null); setMessages([]); setTopic(null); setTraderType(null); setState("idle");
   }
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const topicInfo    = TOPICS.find(t=>t.id===topic)||TOPICS[0];
   const traderInfo   = TRADER_TYPES.find(t=>t.id===traderType)||TRADER_TYPES[1];
   const partnerName  = matchSession ? (matchSession.user1_id===session.user.id ? matchSession.user2_name : matchSession.user1_name) : "";
@@ -163,7 +165,7 @@ export default function Connect({ session, onLogout }) {
     <div style={{ minHeight:"100vh", background:T.bg, display:"flex", flexDirection:"column" }}>
 
       {/* Header */}
-      <header style={{ padding:"16px 24px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+      <header style={{ padding:"16px 24px", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", position:"relative" }}>
         <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontWeight:800, fontSize:"1.1rem", color:T.ink }}>
           <span style={{ color:T.cyan }}>Connect</span>Quants
         </div>
@@ -172,11 +174,59 @@ export default function Connect({ session, onLogout }) {
             <span style={{ width:6, height:6, borderRadius:"50%", background:"#00dc82", display:"inline-block" }} />
             <span style={{ fontSize:".72rem", color:"#4a6a88" }}>{online.length} online</span>
           </div>
-          <span style={{ fontSize:".78rem", color:T.dim }}>Hi, {profile?.username || "..."}</span>
-          <button onClick={onLogout} style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:8, color:T.dim, cursor:"pointer", fontSize:".72rem", padding:"5px 12px", fontFamily:"inherit" }}>
-            Sign out
+          {/* Hamburger */}
+          <button onClick={() => setMenuOpen(v => !v)} style={{
+            background:"none", border:`1px solid ${T.border}`, borderRadius:8,
+            color:T.sub, cursor:"pointer", padding:"6px 10px", fontSize:"1.1rem",
+            display:"flex", flexDirection:"column", gap:4, alignItems:"center", justifyContent:"center", width:38, height:38,
+          }}>
+            <span style={{ display:"block", width:16, height:2, background:"currentColor", borderRadius:2 }} />
+            <span style={{ display:"block", width:16, height:2, background:"currentColor", borderRadius:2 }} />
+            <span style={{ display:"block", width:16, height:2, background:"currentColor", borderRadius:2 }} />
           </button>
         </div>
+
+        {/* Dropdown menu */}
+        {menuOpen && (
+          <>
+            <div onClick={() => setMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:99 }} />
+            <div style={{
+              position:"absolute", top:"calc(100% + 8px)", right:24,
+              background:"#080E1C", border:`1px solid ${T.border}`,
+              borderRadius:14, padding:"8px", zIndex:100,
+              boxShadow:"0 16px 48px rgba(0,0,0,.5)", minWidth:200,
+            }}>
+              <div style={{ padding:"8px 12px 10px", borderBottom:`1px solid ${T.border}`, marginBottom:4 }}>
+                <div style={{ fontWeight:700, color:T.ink, fontSize:".88rem" }}>{profile?.username || "..."}</div>
+                <div style={{ fontSize:".72rem", color:T.dim }}>{session?.user?.email}</div>
+              </div>
+              {[
+                { icon:"👤", label:"My Profile",   action:() => {} },
+                { icon:"ℹ️", label:"How It Works", action:() => window.open("https://www.quantdiver.com","_blank") },
+                { icon:"✉️", label:"Contact",       action:() => window.open("mailto:administrator@quantdiver.com") },
+              ].map(item => (
+                <button key={item.label} onClick={() => { item.action(); setMenuOpen(false); }} style={{
+                  display:"flex", alignItems:"center", gap:10, width:"100%",
+                  padding:"10px 12px", background:"none", border:"none",
+                  borderRadius:8, color:T.sub, fontFamily:"inherit",
+                  fontSize:".85rem", cursor:"pointer", textAlign:"left",
+                }}>
+                  <span>{item.icon}</span> {item.label}
+                </button>
+              ))}
+              <div style={{ borderTop:`1px solid ${T.border}`, marginTop:4, paddingTop:4 }}>
+                <button onClick={() => { onLogout(); setMenuOpen(false); }} style={{
+                  display:"flex", alignItems:"center", gap:10, width:"100%",
+                  padding:"10px 12px", background:"none", border:"none",
+                  borderRadius:8, color:"#ff3c50", fontFamily:"inherit",
+                  fontSize:".85rem", cursor:"pointer", textAlign:"left",
+                }}>
+                  <span>→</span> Sign out
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </header>
 
       <main style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent: state==="idle"||state==="queued" ? "center" : "flex-start", padding:"32px 24px", maxWidth:640, margin:"0 auto", width:"100%" }}>
