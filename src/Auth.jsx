@@ -63,17 +63,20 @@ export default function Auth({ onBack }) {
             <div>
               <label style={{ fontSize:".75rem", color:T.dim, letterSpacing:".08em", textTransform:"uppercase", display:"block", marginBottom:6 }}>Username</label>
               <input value={username} onChange={e=>setUsername(e.target.value)} placeholder="How you'll appear to other investors"
+                autoComplete="username"
                 style={{ width:"100%", background:T.s1, border:`1px solid ${T.border}`, borderRadius:10, color:T.ink, padding:"12px 14px", fontSize:".92rem", outline:"none" }} />
             </div>
           )}
           <div>
             <label style={{ fontSize:".75rem", color:T.dim, letterSpacing:".08em", textTransform:"uppercase", display:"block", marginBottom:6 }}>Email</label>
             <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="your@email.com"
+              autoComplete="email"
               style={{ width:"100%", background:T.s1, border:`1px solid ${T.border}`, borderRadius:10, color:T.ink, padding:"12px 14px", fontSize:".92rem", outline:"none" }} />
           </div>
           <div>
             <label style={{ fontSize:".75rem", color:T.dim, letterSpacing:".08em", textTransform:"uppercase", display:"block", marginBottom:6 }}>Password</label>
             <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required placeholder="Min. 8 characters"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
               style={{ width:"100%", background:T.s1, border:`1px solid ${T.border}`, borderRadius:10, color:T.ink, padding:"12px 14px", fontSize:".92rem", outline:"none" }} />
           </div>
 
